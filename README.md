@@ -84,3 +84,14 @@ npm run typecheck
 
 Las pruebas corren contra `dist/`, no contra `src/`: lo que se rompe en
 producción es lo que se publica.
+
+## Por qué `dist/` está versionado
+
+Porque el paquete se instala **desde git**, no desde un registro. Ahí el
+`dist/` lo tendría que generar el hook `prepare` al instalar, y hay entornos que
+bloquean los scripts de instalación — este mismo ya lo hizo. Un despliegue que
+falla porque no se compiló una dependencia es peor que tener artefactos en el
+repositorio.
+
+Regla: **`npm run build` antes de cada etiqueta**, o se publica una versión con
+un `dist/` viejo.
