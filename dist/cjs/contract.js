@@ -22,11 +22,14 @@ exports.isSupportedContract = isSupportedContract;
 /**
  * Versión que emite este paquete.
  *
- * 1.1 agregó paginación en el listado y `updatedAt` con significado propio. Los
- * dos cambios son aditivos: un lector de 1.0 sigue funcionando contra un sitio
- * 1.1 porque ignora los campos nuevos.
+ * 1.1 agregó paginación en el listado y `updatedAt` con significado propio.
+ * 1.2 agregó la mitad de ESCRITURA: publicar desde el orquestador (ver write.ts).
+ *
+ * Los tres cambios son aditivos: un lector de 1.0 sigue funcionando contra un
+ * sitio 1.2 porque ignora lo que no conoce, y un sitio que no acepta escrituras
+ * lo dice en `capabilities.write` sin dejar de ser 1.2.
  */
-exports.WIWO_CONTRACT_VERSION = '1.1';
+exports.WIWO_CONTRACT_VERSION = '1.2';
 /**
  * Versiones que un lector de esta versión del paquete sabe interpretar.
  *
@@ -34,7 +37,7 @@ exports.WIWO_CONTRACT_VERSION = '1.1';
  * sitios en la versión vieja y en la nueva a la vez, y el orquestador tiene que
  * leer a los dos.
  */
-exports.SUPPORTED_CONTRACTS = ['1.0', '1.1'];
+exports.SUPPORTED_CONTRACTS = ['1.0', '1.1', '1.2'];
 /** True si un lector de este paquete sabe leer esa versión. */
 function isSupportedContract(contract) {
     return exports.SUPPORTED_CONTRACTS.includes(contract);
