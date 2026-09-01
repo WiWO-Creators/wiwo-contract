@@ -7,6 +7,7 @@ export { WIWO_CONTRACT_VERSION, SUPPORTED_CONTRACTS, isSupportedContract, type S
 export { parseArticlePage, parseManifest, describeManifestProblem, } from './parse.js';
 export { CONTRACT_PATH, errorResponse, isIsoDate, jsonResponse, publicOrigin, } from './http.js';
 export { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, decodeCursor, encodeCursor, resolvePageSize, sliceByCursor, type Slice, } from './pagination.js';
+export { WIWO_MEDIA_MAX_BYTES, WIWO_MEDIA_TYPES, type WiwoMediaResult, } from './media.js';
 export { WIWO_COMMON_BLOCK_TYPES, parseMarkdownBlocks, type WiwoCommonBlock, type WiwoDivider, type WiwoHeading, type WiwoList, type WiwoParagraph, type WiwoQuote, type WiwoTable, } from './blocks.js';
 export { buildArticleDraft, proposeId, type WiwoDraftContext, type WiwoFieldValue, type WiwoFieldValues, } from './draft.js';
 export { CORE_FIELD_KEYS, WRITE_AUTH_SCHEME, parseArticleDraft, validateAgainstFields, type WiwoArticleDraft, type WiwoWriteError, type WiwoWriteErrorCode, type WiwoWriteResult, } from './write.js';

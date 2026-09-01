@@ -3,6 +3,14 @@ import { errorResponse, isIsoDate, jsonResponse, publicOrigin } from './http.js'
 import { resolvePageSize, sliceByCursor } from './pagination.js';
 import { parseArticleDraft, validateAgainstFields } from './write.js';
 import type { WiwoWriteError } from './write.js';
+import {
+  WIWO_MEDIA_TABLE,
+  mediaContentType,
+  parseMediaUpload,
+  type WiwoMediaFile,
+  type WiwoMediaStore,
+  type WiwoStoredMedia,
+} from './media.js';
 
 /**
  * Responsabilidad: el lado servidor del contrato — guardar, leer y aceptar
@@ -125,6 +133,74 @@ export function createArticleStore(getSql: () => Promise<WiwoSql>): WiwoArticleS
 }
 
 /**
+ * El almacén de archivos de un sitio, sobre su propia base.
+ *
+ * Los bytes van en la misma base que las notas y no en el disco: los sitios
+ * corren en plataformas donde el sistema de archivos es de solo lectura, así que
+ * un archivo escrito en disco desaparece en el despliegue siguiente. La base es
+ * lo único que ya tienen todos y que sobrevive.
+ *
+ * @param getSql Cómo obtener el ejecutor de SQL del sitio. Se recibe como
+ *   función porque abrir la base es asíncrono y no debe pasar al importar.
+ */
+export function createMediaStore(
+  getSql: () => Promise<WiwoSql>,
+): WiwoMediaStore {
+  return {
+    /**
+     * No degrada ante un fallo, igual que guardar una nota: si esto fallara en
+     * silencio, el orquestador publicaría la nota apuntando a una imagen que
+     * nunca se guardó.
+     */
+    async save(file: WiwoMediaFile): Promise<void> {
+      const sql = await getSql();
+      // El identificador es el hash del contenido, así que un choque significa
+      // que el archivo YA está guardado y es idéntico: no hay nada que escribir.
+      await sql.query(
+        `insert into ${WIWO_MEDIA_TABLE} (id, content_type, bytes, data)
+         values ($1, $2, $3, $4)
+         on conflict (id) do nothing`,
+        [file.id, file.contentType, file.bytes, Buffer.from(file.data)],
+      );
+    },
+
+    async find(id: string): Promise<WiwoStoredMedia | null> {
+      const sql = await getSql();
+      const filas = await sql.query<{ content_type: string; data: unknown }>(
+        `select content_type, data from ${WIWO_MEDIA_TABLE} where id = $1`,
+        [id],
+      );
+      if (filas.length === 0) return null;
+
+      return {
+        contentType: filas[0].content_type,
+        data: aBytes(filas[0].data),
+      };
+    },
+  };
+}
+
+/**
+ * Los bytes de una columna binaria.
+ *
+ * Según el driver, `bytea` vuelve como Buffer, como Uint8Array o como el texto
+ * hexadecimal que usa Postgres (`\x…`). Se aceptan las tres en vez de confiar en
+ * una: el sitio elige su driver y el contrato no debería obligarlo a cambiarlo.
+ */
+function aBytes(valor: unknown): Uint8Array {
+  if (valor instanceof Uint8Array) return valor;
+  if (typeof valor === 'string' && valor.startsWith('\\x')) {
+    const hex = valor.slice(2);
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+  }
+  throw new Error('[wiwo] la base devolvió el archivo en un formato inesperado');
+}
+
+/**
  * El orden en que las notas salen al cable.
  *
  * De la más nueva a la más vieja; dentro del mismo día manda `rank` —la
@@ -176,6 +252,22 @@ export interface WiwoSiteConfig {
   /** Los campos que el sitio exige para aceptar una nota. */
   fields(origin: string): WiwoField[];
   /** La URL pública de una nota en este sitio. */
+  urlFor(id: string, origin: string): string;
+  /**
+   * Dónde guarda este sitio las imágenes que le suban.
+   *
+   * Opcional: un sitio que no lo declare sigue sirviendo notas igual, y su
+   * manifest anuncia `media: false` para que el orquestador no ofrezca subir
+   * archivos a un destino que no puede recibirlos.
+   */
+  media?: WiwoMediaConfig;
+}
+
+/** La mitad de medios de un sitio. */
+export interface WiwoMediaConfig {
+  /** Dónde viven los archivos subidos. */
+  store: WiwoMediaStore;
+  /** La URL pública de un archivo en este sitio. */
   urlFor(id: string, origin: string): string;
 }
 
@@ -309,6 +401,99 @@ function alCable(
  * @param config Lo propio del sitio: su almacén, su archivo, sus campos y sus
  *   URLs.
  */
+/**
+ * True si este sitio puede recibir archivos.
+ *
+ * Es lo que el manifest anuncia como `capabilities.media`: hacen falta las dos
+ * cosas, un lugar donde guardarlos y la clave de escritura, porque subir un
+ * archivo es escribir. Anunciarlo sin alguna de las dos haría que el orquestador
+ * ofreciera subir a un destino que va a rechazar todo.
+ */
+export function canWriteMedia(config: WiwoSiteConfig): boolean {
+  return config.media !== undefined && canWrite();
+}
+
+/**
+ * El endpoint que RECIBE archivos: POST /api/wiwo/v1/media.
+ *
+ * Pide la misma clave que publicar una nota, y por el mismo motivo: subir un
+ * archivo escribe en el sitio, y sin clave cualquiera podría llenarle la base de
+ * imágenes ajenas.
+ *
+ * Contesta 201 con la URL pública, que es lo único que le sirve a quien sube: se
+ * pega tal cual en el campo de imagen de la nota.
+ */
+export function createMediaHandlers(config: WiwoSiteConfig): {
+  POST(ctx: { request: Request }): Promise<Response>;
+} {
+  return {
+    async POST({ request }) {
+      if (!config.media) {
+        return writeError({
+          code: 'not_supported',
+          message: 'Este sitio no acepta archivos.',
+        });
+      }
+
+      const negado = denyWrite(request);
+      if (negado) return writeError(negado);
+
+      const archivo = await parseMediaUpload(request);
+      if ('code' in archivo) return writeError(archivo);
+
+      await config.media.store.save(archivo);
+
+      return jsonResponse(
+        {
+          url: config.media.urlFor(archivo.id, publicOrigin(request)),
+          id: archivo.id,
+          contentType: archivo.contentType,
+          bytes: archivo.bytes,
+        },
+        201,
+      );
+    },
+  };
+}
+
+/**
+ * El endpoint que SIRVE archivos: GET /api/wiwo/v1/media/:id.
+ *
+ * Es público, como el resto de lo que el sitio publica: la imagen de una nota la
+ * ve cualquiera que lea la nota, y pedir clave para verla rompería la página.
+ *
+ * Se cachea para siempre porque el identificador es el hash del contenido: esa
+ * URL no puede pasar a significar otra imagen, así que revalidarla no cambiaría
+ * nunca nada.
+ */
+export function createMediaFileHandlers(config: WiwoSiteConfig): {
+  GET(ctx: { request: Request; params: { id: string } }): Promise<Response>;
+} {
+  return {
+    async GET({ params }) {
+      if (!config.media) return errorResponse('Este sitio no sirve archivos.', 404);
+
+      // Se valida la extensión antes de tocar la base: el identificador viaja en
+      // la URL, y sin esto cualquier cadena llegaría a la consulta.
+      if (!mediaContentType(params.id)) {
+        return errorResponse('Ese archivo no existe.', 404);
+      }
+
+      const archivo = await config.media.store.find(params.id);
+      if (!archivo) return errorResponse('Ese archivo no existe.', 404);
+
+      return new Response(archivo.data as BodyInit, {
+        headers: {
+          'content-type': archivo.contentType,
+          'content-length': String(archivo.data.byteLength),
+          'cache-control': 'public, max-age=31536000, immutable',
+          'access-control-allow-origin': '*',
+        },
+      });
+    },
+  };
+}
+
 export function createArticlesHandlers(config: WiwoSiteConfig): {
   GET(ctx: { request: Request }): Promise<Response>;
   POST(ctx: { request: Request }): Promise<Response>;

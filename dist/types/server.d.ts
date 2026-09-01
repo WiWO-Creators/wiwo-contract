@@ -1,5 +1,6 @@
 import type { WiwoArticle, WiwoField, WiwoSiteArticle } from './contract.js';
 import type { WiwoWriteError } from './write.js';
+import { type WiwoMediaStore } from './media.js';
 /**
  * Responsabilidad: el lado servidor del contrato — guardar, leer y aceptar
  * notas, con el mismo comportamiento en todos los sitios.
@@ -48,6 +49,18 @@ export interface WiwoArticleStore {
  */
 export declare function createArticleStore(getSql: () => Promise<WiwoSql>): WiwoArticleStore;
 /**
+ * El almacén de archivos de un sitio, sobre su propia base.
+ *
+ * Los bytes van en la misma base que las notas y no en el disco: los sitios
+ * corren en plataformas donde el sistema de archivos es de solo lectura, así que
+ * un archivo escrito en disco desaparece en el despliegue siguiente. La base es
+ * lo único que ya tienen todos y que sobrevive.
+ *
+ * @param getSql Cómo obtener el ejecutor de SQL del sitio. Se recibe como
+ *   función porque abrir la base es asíncrono y no debe pasar al importar.
+ */
+export declare function createMediaStore(getSql: () => Promise<WiwoSql>): WiwoMediaStore;
+/**
  * El orden en que las notas salen al cable.
  *
  * De la más nueva a la más vieja; dentro del mismo día manda `rank` —la
@@ -84,6 +97,21 @@ export interface WiwoSiteConfig {
     /** Los campos que el sitio exige para aceptar una nota. */
     fields(origin: string): WiwoField[];
     /** La URL pública de una nota en este sitio. */
+    urlFor(id: string, origin: string): string;
+    /**
+     * Dónde guarda este sitio las imágenes que le suban.
+     *
+     * Opcional: un sitio que no lo declare sigue sirviendo notas igual, y su
+     * manifest anuncia `media: false` para que el orquestador no ofrezca subir
+     * archivos a un destino que no puede recibirlos.
+     */
+    media?: WiwoMediaConfig;
+}
+/** La mitad de medios de un sitio. */
+export interface WiwoMediaConfig {
+    /** Dónde viven los archivos subidos. */
+    store: WiwoMediaStore;
+    /** La URL pública de un archivo en este sitio. */
     urlFor(id: string, origin: string): string;
 }
 /**
@@ -124,6 +152,48 @@ export declare function allArticles(config: WiwoSiteConfig, origin: string, sinc
  * @param config Lo propio del sitio: su almacén, su archivo, sus campos y sus
  *   URLs.
  */
+/**
+ * True si este sitio puede recibir archivos.
+ *
+ * Es lo que el manifest anuncia como `capabilities.media`: hacen falta las dos
+ * cosas, un lugar donde guardarlos y la clave de escritura, porque subir un
+ * archivo es escribir. Anunciarlo sin alguna de las dos haría que el orquestador
+ * ofreciera subir a un destino que va a rechazar todo.
+ */
+export declare function canWriteMedia(config: WiwoSiteConfig): boolean;
+/**
+ * El endpoint que RECIBE archivos: POST /api/wiwo/v1/media.
+ *
+ * Pide la misma clave que publicar una nota, y por el mismo motivo: subir un
+ * archivo escribe en el sitio, y sin clave cualquiera podría llenarle la base de
+ * imágenes ajenas.
+ *
+ * Contesta 201 con la URL pública, que es lo único que le sirve a quien sube: se
+ * pega tal cual en el campo de imagen de la nota.
+ */
+export declare function createMediaHandlers(config: WiwoSiteConfig): {
+    POST(ctx: {
+        request: Request;
+    }): Promise<Response>;
+};
+/**
+ * El endpoint que SIRVE archivos: GET /api/wiwo/v1/media/:id.
+ *
+ * Es público, como el resto de lo que el sitio publica: la imagen de una nota la
+ * ve cualquiera que lea la nota, y pedir clave para verla rompería la página.
+ *
+ * Se cachea para siempre porque el identificador es el hash del contenido: esa
+ * URL no puede pasar a significar otra imagen, así que revalidarla no cambiaría
+ * nunca nada.
+ */
+export declare function createMediaFileHandlers(config: WiwoSiteConfig): {
+    GET(ctx: {
+        request: Request;
+        params: {
+            id: string;
+        };
+    }): Promise<Response>;
+};
 export declare function createArticlesHandlers(config: WiwoSiteConfig): {
     GET(ctx: {
         request: Request;

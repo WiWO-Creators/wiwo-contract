@@ -46,6 +46,12 @@ export {
 } from './pagination.js';
 
 export {
+  WIWO_MEDIA_MAX_BYTES,
+  WIWO_MEDIA_TYPES,
+  type WiwoMediaResult,
+} from './media.js';
+
+export {
   WIWO_COMMON_BLOCK_TYPES,
   parseMarkdownBlocks,
   type WiwoCommonBlock,
