@@ -73,6 +73,18 @@ export type WiwoField = {
     hint?: string;
 };
 /**
+ * Cualquier valor que pueda viajar por el contrato.
+ *
+ * El contrato se transporta como JSON, así que esto es lo que de verdad cabe.
+ * Decirlo con `unknown` sería más permisivo de lo que la realidad admite: una
+ * fecha o un Map se aceptarían al escribir y llegarían irreconocibles al otro
+ * lado. Además deja que los marcos que comprueban qué se puede serializar
+ * —TanStack Start, entre otros— acepten estas estructuras sin ayuda.
+ */
+export type WiwoJson = string | number | boolean | null | WiwoJson[] | {
+    [clave: string]: WiwoJson;
+};
+/**
  * Un bloque del cuerpo. El tipo es abierto a propósito.
  *
  * El orquestador no interpreta bloques: los transporta tal cual. Qué significa
@@ -81,7 +93,9 @@ export type WiwoField = {
  */
 export type WiwoBlock = {
     type: string;
-} & Record<string, unknown>;
+} & {
+    [clave: string]: WiwoJson;
+};
 /** Un tipo de bloque, declarado para que el orquestador pueda editar el cuerpo. */
 export type WiwoBlockType = {
     type: string;
@@ -159,8 +173,22 @@ export type WiwoArticle = {
      * Campos propios del sitio que el núcleo no cubre. El orquestador los
      * transporta sin interpretarlos, para no perderlos al republicar.
      */
-    extra: Record<string, unknown>;
+    extra: {
+        [clave: string]: WiwoJson;
+    };
 };
+/**
+ * Una nota tal como la GUARDA un sitio: todo el contrato menos la URL.
+ *
+ * La URL no se guarda porque no es del dato, es de la petición: un sitio
+ * responde en más de un dominio —el propio y el de su plataforma— y la URL
+ * correcta es la del dominio por el que preguntaron. Guardarla congelaría la del
+ * día en que se publicó, y el orquestador vería dos identidades de la misma nota.
+ *
+ * Es también el modelo interno de un sitio: guardar la forma del contrato es lo
+ * que hace que no haga falta un adaptador de ida y otro de vuelta por sitio.
+ */
+export type WiwoSiteArticle = Omit<WiwoArticle, 'url'>;
 /**
  * Qué es un sitio y qué acepta.
  *

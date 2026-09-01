@@ -65,9 +65,19 @@ const EN_EL_NUCLEO = {
     readingMinutes: (d) => d.readingMinutes,
     rank: (d) => d.rank,
     section: (d) => d.section?.id,
-    author: (d) => d.author?.name,
+    // La identidad de una firma es su slug cuando el sitio elige de una lista
+    // cerrada, y su nombre cuando firma con una línea editorial. Mirar solo el
+    // nombre rechazaría la firma que el propio sitio ofreció en su manifest.
+    author: (d) => d.author?.slug ?? d.author?.name,
     image: (d) => d.image?.url,
     imageAlt: (d) => d.image?.alt,
+    // La capa SEO es parte del núcleo aunque viaje envuelta en `seo`: los dos
+    // sitios que existen declaran estos cuatro campos, así que leerlos de `extra`
+    // los daría por propios de cada uno y los duplicaría en las dos partes.
+    seoTitle: (d) => d.seo?.title,
+    seoDescription: (d) => d.seo?.description,
+    tldr: (d) => d.seo?.tldr,
+    faq: (d) => d.seo?.faq,
     // El cuerpo se juzga por su CONTENIDO: el envoltorio nunca está vacío, así que
     // mirarlo a él daría por rellenado un cuerpo sin una sola palabra.
     body: (d) => d.body?.format === 'markdown' ? d.body.markdown : d.body?.blocks,
@@ -120,6 +130,17 @@ export function validateAgainstFields(draft, fields) {
             if (field.required)
                 errores[field.key] = `Falta "${field.label}".`;
             // Un campo opcional vacío no se comprueba más: no hay valor que juzgar.
+            continue;
+        }
+        // El cuerpo es el único campo del núcleo con dos formas posibles, y el
+        // sitio declara cuál sabe dibujar. Una nota en Markdown guardada en un sitio
+        // que recorre bloques se guarda sin error y aparece en blanco al leerla.
+        if (field.key === 'body') {
+            const esperado = field.type === 'blocks' ? 'blocks' : field.type === 'markdown' ? 'markdown' : null;
+            if (esperado && draft.body?.format !== esperado) {
+                errores[field.key] =
+                    `"${field.label}" tiene que venir en ${esperado === 'blocks' ? 'bloques' : 'Markdown'}.`;
+            }
             continue;
         }
         if (field.type === 'enum') {

@@ -162,7 +162,9 @@ function normalizeArticle(raw: Record<string, unknown>): WiwoArticle {
           }))
         : [],
     },
-    extra: isRecord(raw.extra) ? raw.extra : {},
+    // Lo que llega por la red ya es JSON: si es un objeto, sus valores son
+    // valores JSON por construcción. El tipo lo dice; el parseo lo confirma.
+    extra: isRecord(raw.extra) ? (raw.extra as WiwoArticle['extra']) : {},
   };
 }
 

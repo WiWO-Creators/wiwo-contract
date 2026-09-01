@@ -7,4 +7,6 @@ export { WIWO_CONTRACT_VERSION, SUPPORTED_CONTRACTS, isSupportedContract, } from
 export { parseArticlePage, parseManifest, describeManifestProblem, } from './parse.js';
 export { CONTRACT_PATH, errorResponse, isIsoDate, jsonResponse, publicOrigin, } from './http.js';
 export { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, decodeCursor, encodeCursor, resolvePageSize, sliceByCursor, } from './pagination.js';
+export { WIWO_COMMON_BLOCK_TYPES, parseMarkdownBlocks, } from './blocks.js';
+export { buildArticleDraft, proposeId, } from './draft.js';
 export { CORE_FIELD_KEYS, WRITE_AUTH_SCHEME, parseArticleDraft, validateAgainstFields, } from './write.js';
