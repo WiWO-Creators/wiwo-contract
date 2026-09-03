@@ -198,6 +198,24 @@ export type WiwoArticle = {
 export type WiwoSiteArticle = Omit<WiwoArticle, 'url'>;
 
 /**
+ * Para quién es un sitio.
+ *
+ * Es un conjunto CERRADO, como los códigos de error de escritura y por el mismo
+ * motivo: el orquestador tiene que poder REACCIONAR y no sólo mostrar un rótulo.
+ * Mirar aparte lo que se publica en un sitio infantil es una decisión que se
+ * toma con este valor; una cadena libre obligaría a cada lector a inventar su
+ * propia lista y a acertarle a la ortografía del otro.
+ *
+ * Describe al SITIO, no a una nota. Que un sitio sea infantil no dice nada de
+ * la pieza que se le publica; dice con qué criterio hay que tratarla.
+ */
+export type WiwoAudience =
+  /** Público general. Es lo que se asume cuando el sitio no dice nada. */
+  | 'general'
+  /** Lo leen niños. */
+  | 'kids';
+
+/**
  * Qué es un sitio y qué acepta.
  *
  * Es lo primero que pide el orquestador. Reemplaza a cualquier intento de
@@ -210,6 +228,19 @@ export type WiwoManifest = {
     url: string;
     /** Código BCP 47. */
     language: string;
+    /**
+     * Para quién es este sitio. Ausente se lee como `general`.
+     *
+     * Opcional por lo mismo que `capabilities.delete`: un sitio con una versión
+     * anterior del paquete no lo emite, y el tipo no puede mentir diciendo que
+     * siempre viene. Tampoco sube la versión del protocolo —ver
+     * WIWO_CONTRACT_VERSION—: un lector viejo lo ignora y sigue leyendo el sitio.
+     *
+     * Vive en `site` y no en `capabilities` a propósito: no cambia lo que se
+     * PUEDE hacer con el sitio, sino con qué criterio hay que tratarlo. Un sitio
+     * infantil acepta exactamente lo mismo que cualquier otro.
+     */
+    audience?: WiwoAudience;
   };
   /**
    * Qué se puede hacer con este sitio. Una página conectada puede no publicar
@@ -246,6 +277,21 @@ export type WiwoManifest = {
   /** ISO 8601. Cuándo se armó esta respuesta. */
   generatedAt: string;
 };
+
+/**
+ * Para quién es el sitio, con el valor por omisión ya resuelto.
+ *
+ * Existe para que la omisión se decida UNA vez. Cada lector que hiciera
+ * `audience ?? general` por su cuenta sería otro lugar donde equivocarse, y un
+ * valor que no esté en la lista —un sitio más nuevo que quien lo lee— se trata
+ * como `general` en vez de romper: es la lectura conservadora.
+ *
+ * @param manifest El manifest tal como lo entregó el sitio.
+ * @returns La audiencia declarada, o `general` si no declaró una que se conozca.
+ */
+export function audienceOf(manifest: WiwoManifest): WiwoAudience {
+  return manifest.site?.audience === 'kids' ? 'kids' : 'general';
+}
 
 /** Una página del listado de notas. */
 export type WiwoArticlePage = {

@@ -1,6 +1,6 @@
 {
   "name": "@wiwo/contract",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Contrato wiwo: la forma en que un sitio le entrega su contenido al orquestador.",
   "license": "UNLICENSED",
   "private": false,

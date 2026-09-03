@@ -5,11 +5,12 @@
  * NO hace: no agrega lógica; solo reexporta.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateAgainstFields = exports.parseArticleDraft = exports.WRITE_AUTH_SCHEME = exports.CORE_FIELD_KEYS = exports.proposeId = exports.buildArticleDraft = exports.parseMarkdownBlocks = exports.WIWO_COMMON_BLOCK_TYPES = exports.WIWO_MEDIA_TYPES = exports.WIWO_MEDIA_MAX_BYTES = exports.sliceByCursor = exports.resolvePageSize = exports.encodeCursor = exports.decodeCursor = exports.MAX_PAGE_SIZE = exports.DEFAULT_PAGE_SIZE = exports.publicOrigin = exports.jsonResponse = exports.isIsoDate = exports.errorResponse = exports.CONTRACT_PATH = exports.describeManifestProblem = exports.parseManifest = exports.parseArticlePage = exports.isSupportedContract = exports.SUPPORTED_CONTRACTS = exports.WIWO_CONTRACT_VERSION = void 0;
+exports.validateAgainstFields = exports.parseArticleDraft = exports.WRITE_AUTH_SCHEME = exports.CORE_FIELD_KEYS = exports.proposeId = exports.buildArticleDraft = exports.parseMarkdownBlocks = exports.WIWO_COMMON_BLOCK_TYPES = exports.WIWO_MEDIA_TYPES = exports.WIWO_MEDIA_MAX_BYTES = exports.sliceByCursor = exports.resolvePageSize = exports.encodeCursor = exports.decodeCursor = exports.MAX_PAGE_SIZE = exports.DEFAULT_PAGE_SIZE = exports.publicOrigin = exports.jsonResponse = exports.isIsoDate = exports.errorResponse = exports.CONTRACT_PATH = exports.describeManifestProblem = exports.parseManifest = exports.parseArticlePage = exports.audienceOf = exports.isSupportedContract = exports.SUPPORTED_CONTRACTS = exports.WIWO_CONTRACT_VERSION = void 0;
 var contract_js_1 = require("./contract.js");
 Object.defineProperty(exports, "WIWO_CONTRACT_VERSION", { enumerable: true, get: function () { return contract_js_1.WIWO_CONTRACT_VERSION; } });
 Object.defineProperty(exports, "SUPPORTED_CONTRACTS", { enumerable: true, get: function () { return contract_js_1.SUPPORTED_CONTRACTS; } });
 Object.defineProperty(exports, "isSupportedContract", { enumerable: true, get: function () { return contract_js_1.isSupportedContract; } });
+Object.defineProperty(exports, "audienceOf", { enumerable: true, get: function () { return contract_js_1.audienceOf; } });
 var parse_js_1 = require("./parse.js");
 Object.defineProperty(exports, "parseArticlePage", { enumerable: true, get: function () { return parse_js_1.parseArticlePage; } });
 Object.defineProperty(exports, "parseManifest", { enumerable: true, get: function () { return parse_js_1.parseManifest; } });

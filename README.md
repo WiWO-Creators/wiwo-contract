@@ -86,11 +86,17 @@ versión vieja y en la nueva a la vez.
 - **1.1** — paginación por cursor y `updatedAt` con significado propio.
 - **1.0** — versión inicial. Se sigue leyendo.
 
-Lo **opcional** no sube la versión: se anuncia en `capabilities`. El borrado
+Lo **opcional** no sube la versión: se anuncia como campo opcional. El borrado
 llegó así —`capabilities.delete`— y no como 1.3, porque un sitio que anuncie una
 versión que el orquestador todavía no tiene en `SUPPORTED_CONTRACTS` no queda
 "sin borrado": queda ilegible entero. Un lector viejo no ve el campo, lo trata
 como ausente y no ofrece borrar.
+
+Por lo mismo, `site.audience` —para quién es el sitio— también es opcional y
+tampoco subió la versión. Se lee con `audienceOf(manifest)`, que resuelve la
+omisión en un solo lugar: sin declaración, `general`. Un valor desconocido
+también se lee como `general`, nunca como un error: un sitio más nuevo que quien
+lo lee tiene que seguir siendo legible.
 
 Un cambio incompatible sube la versión **y** se agrega a `SUPPORTED_CONTRACTS`
 antes de tocar ningún sitio.

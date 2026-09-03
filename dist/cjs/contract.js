@@ -19,6 +19,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SUPPORTED_CONTRACTS = exports.WIWO_CONTRACT_VERSION = void 0;
 exports.isSupportedContract = isSupportedContract;
+exports.audienceOf = audienceOf;
 /**
  * Versión que emite este paquete.
  *
@@ -51,4 +52,18 @@ exports.SUPPORTED_CONTRACTS = ['1.0', '1.1', '1.2'];
 /** True si un lector de este paquete sabe leer esa versión. */
 function isSupportedContract(contract) {
     return exports.SUPPORTED_CONTRACTS.includes(contract);
+}
+/**
+ * Para quién es el sitio, con el valor por omisión ya resuelto.
+ *
+ * Existe para que la omisión se decida UNA vez. Cada lector que hiciera
+ * `audience ?? general` por su cuenta sería otro lugar donde equivocarse, y un
+ * valor que no esté en la lista —un sitio más nuevo que quien lo lee— se trata
+ * como `general` en vez de romper: es la lectura conservadora.
+ *
+ * @param manifest El manifest tal como lo entregó el sitio.
+ * @returns La audiencia declarada, o `general` si no declaró una que se conozca.
+ */
+function audienceOf(manifest) {
+    return manifest.site?.audience === 'kids' ? 'kids' : 'general';
 }

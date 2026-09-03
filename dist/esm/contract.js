@@ -48,3 +48,17 @@ export const SUPPORTED_CONTRACTS = ['1.0', '1.1', '1.2'];
 export function isSupportedContract(contract) {
     return SUPPORTED_CONTRACTS.includes(contract);
 }
+/**
+ * Para quién es el sitio, con el valor por omisión ya resuelto.
+ *
+ * Existe para que la omisión se decida UNA vez. Cada lector que hiciera
+ * `audience ?? general` por su cuenta sería otro lugar donde equivocarse, y un
+ * valor que no esté en la lista —un sitio más nuevo que quien lo lee— se trata
+ * como `general` en vez de romper: es la lectura conservadora.
+ *
+ * @param manifest El manifest tal como lo entregó el sitio.
+ * @returns La audiencia declarada, o `general` si no declaró una que se conozca.
+ */
+export function audienceOf(manifest) {
+    return manifest.site?.audience === 'kids' ? 'kids' : 'general';
+}
