@@ -25,6 +25,16 @@
  * Los tres cambios son aditivos: un lector de 1.0 sigue funcionando contra un
  * sitio 1.2 porque ignora lo que no conoce, y un sitio que no acepta escrituras
  * lo dice en `capabilities.write` sin dejar de ser 1.2.
+ *
+ * El BORRADO (DELETE en el endpoint de notas) NO subió la versión, y es una
+ * decisión, no un olvido. `describeManifestProblem` rechaza de plano un sitio
+ * cuya versión no esté en SUPPORTED_CONTRACTS: subirla obligaría a desplegar el
+ * orquestador ANTES que cualquier sitio, y un sitio que se adelantara quedaría
+ * ilegible —no "sin borrado", ilegible— hasta que el otro lado se actualice.
+ * Como el borrado es opcional y no cambia la forma de ningún dato, se anuncia
+ * donde se anuncian las cosas opcionales: `capabilities.delete`. Un lector viejo
+ * no ve el campo, lo trata como ausente y no ofrece borrar, que es exactamente
+ * lo correcto.
  */
 export const WIWO_CONTRACT_VERSION = '1.2';
 
@@ -211,6 +221,19 @@ export type WiwoManifest = {
     read: boolean;
     write: boolean;
     media: boolean;
+    /**
+     * Si el sitio acepta que el orquestador BORRE una nota que le publicó.
+     *
+     * Opcional en el tipo, y no por comodidad: los sitios que hablan una versión
+     * anterior del paquete no lo emiten, y quien lee tiene que distinguir "dijo
+     * que no" de "no dijo nada". Las dos se tratan igual —no se ofrece borrar—
+     * pero el tipo no puede mentir diciendo que el campo siempre viene.
+     *
+     * Sólo alcanza a lo que el orquestador publicó: el archivo editorial del
+     * repositorio del sitio no se puede borrar por API, porque no está en la
+     * base sino en su código.
+     */
+    delete?: boolean;
   };
   format: {
     id: string;

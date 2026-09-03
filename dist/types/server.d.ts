@@ -34,6 +34,17 @@ export interface WiwoArticleStore {
     find(id: string): Promise<WiwoSiteArticle | null>;
     /** Guarda una nota, reemplazándola si ya existía. */
     save(article: WiwoSiteArticle): Promise<void>;
+    /**
+     * Borra una nota publicada.
+     *
+     * Alcanza SOLO a lo que el orquestador publicó, que es lo que vive en la base.
+     * El archivo editorial del repositorio del sitio no se puede tocar desde acá:
+     * es código, y lo que un sitio trae en su código no es asunto del protocolo.
+     *
+     * @returns True si había algo que borrar. False si esa nota no estaba, que es
+     *   lo que permite contestar 404 en vez de decir que se borró algo inexistente.
+     */
+    remove(id: string): Promise<boolean>;
 }
 /**
  * El almacén de notas publicadas de un sitio.
@@ -162,6 +173,16 @@ export declare function allArticles(config: WiwoSiteConfig, origin: string, sinc
  */
 export declare function canWriteMedia(config: WiwoSiteConfig): boolean;
 /**
+ * True si este sitio acepta que le borren una nota publicada.
+ *
+ * Es lo que el manifest anuncia como `capabilities.delete`. Hoy es lo mismo que
+ * poder escribir —borrar es escribir, y la puerta es la misma clave— pero se
+ * declara aparte porque son permisos distintos: un sitio podría querer recibir
+ * publicaciones sin que nadie pueda vaciarlas remotamente, y ese día esto es una
+ * variable de entorno más y no un cambio de protocolo.
+ */
+export declare function canDelete(): boolean;
+/**
  * El endpoint que RECIBE archivos: POST /api/wiwo/v1/media.
  *
  * Pide la misma clave que publicar una nota, y por el mismo motivo: subir un
@@ -199,6 +220,9 @@ export declare function createArticlesHandlers(config: WiwoSiteConfig): {
         request: Request;
     }): Promise<Response>;
     POST(ctx: {
+        request: Request;
+    }): Promise<Response>;
+    DELETE(ctx: {
         request: Request;
     }): Promise<Response>;
 };

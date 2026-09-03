@@ -48,6 +48,17 @@ export interface WiwoArticleStore {
   find(id: string): Promise<WiwoSiteArticle | null>;
   /** Guarda una nota, reemplazándola si ya existía. */
   save(article: WiwoSiteArticle): Promise<void>;
+  /**
+   * Borra una nota publicada.
+   *
+   * Alcanza SOLO a lo que el orquestador publicó, que es lo que vive en la base.
+   * El archivo editorial del repositorio del sitio no se puede tocar desde acá:
+   * es código, y lo que un sitio trae en su código no es asunto del protocolo.
+   *
+   * @returns True si había algo que borrar. False si esa nota no estaba, que es
+   *   lo que permite contestar 404 en vez de decir que se borró algo inexistente.
+   */
+  remove(id: string): Promise<boolean>;
 }
 
 /** Lo que devuelve la base: la nota en JSON, ya parseada o todavía en texto. */
@@ -128,6 +139,22 @@ export function createArticleStore(getSql: () => Promise<WiwoSql>): WiwoArticleS
            written_at = now()`,
         [article.id, article.publishedAt, article.updatedAt, JSON.stringify(article)],
       );
+    },
+
+    /**
+     * No degrada ante un fallo, por lo mismo que guardar: si esto fallara en
+     * silencio, el orquestador daría por borrada una nota que sigue publicada.
+     *
+     * El `returning id` es lo que distingue "se borró" de "no estaba": sin eso
+     * un DELETE que no encuentra nada es indistinguible de uno que sí borró.
+     */
+    async remove(id: string): Promise<boolean> {
+      const sql = await getSql();
+      const filas = await sql.query<{ id: string }>(
+        `delete from ${WIWO_ARTICLES_TABLE} where id = $1 returning id`,
+        [id],
+      );
+      return filas.length > 0;
     },
   };
 }
@@ -414,6 +441,19 @@ export function canWriteMedia(config: WiwoSiteConfig): boolean {
 }
 
 /**
+ * True si este sitio acepta que le borren una nota publicada.
+ *
+ * Es lo que el manifest anuncia como `capabilities.delete`. Hoy es lo mismo que
+ * poder escribir —borrar es escribir, y la puerta es la misma clave— pero se
+ * declara aparte porque son permisos distintos: un sitio podría querer recibir
+ * publicaciones sin que nadie pueda vaciarlas remotamente, y ese día esto es una
+ * variable de entorno más y no un cambio de protocolo.
+ */
+export function canDelete(): boolean {
+  return canWrite();
+}
+
+/**
  * El endpoint que RECIBE archivos: POST /api/wiwo/v1/media.
  *
  * Pide la misma clave que publicar una nota, y por el mismo motivo: subir un
@@ -497,6 +537,7 @@ export function createMediaFileHandlers(config: WiwoSiteConfig): {
 export function createArticlesHandlers(config: WiwoSiteConfig): {
   GET(ctx: { request: Request }): Promise<Response>;
   POST(ctx: { request: Request }): Promise<Response>;
+  DELETE(ctx: { request: Request }): Promise<Response>;
 } {
   return {
     async GET({ request }) {
@@ -589,6 +630,45 @@ export function createArticlesHandlers(config: WiwoSiteConfig): {
         },
         previa ? 200 : 201,
       );
+    },
+
+    /**
+     * Borra una nota publicada: DELETE /api/wiwo/v1/articles?id=…
+     *
+     * El identificador va en la QUERY y no en la ruta, y esa es la decisión que
+     * hace que esto exista sin tocar ningún sitio: cada uno monta este manejador
+     * entero en su ruta de notas —`handlers: createArticlesHandlers(config)`—,
+     * así que el borrado llega actualizando el paquete y nada más. Con
+     * `/articles/:id` haría falta un archivo de ruta nuevo en cada uno de los
+     * sitios, y ese es justamente el trabajo manual que este paquete existe para
+     * no repetir cien veces.
+     *
+     * Sólo borra lo que el orquestador publicó. Una nota del archivo editorial
+     * del sitio vive en su código, no en la base: se contesta 404 diciéndolo,
+     * porque "no se pudo" a secas mandaría a revisar la clave o la conexión por
+     * algo que ninguna de las dos puede arreglar.
+     */
+    async DELETE({ request }) {
+      const negado = denyWrite(request);
+      if (negado) return writeError(negado);
+
+      const id = new URL(request.url).searchParams.get('id')?.trim();
+      if (!id) {
+        return writeError({
+          code: 'validation',
+          message: 'Falta el identificador de la nota a borrar.',
+        });
+      }
+
+      if (!(await config.store.remove(id))) {
+        return writeError({
+          code: 'not_found',
+          message:
+            'Este sitio no tiene publicada ninguna nota con ese identificador. Si aparece en el sitio, es parte de su archivo editorial y vive en su repositorio, no en la base: no se puede borrar por API.',
+        });
+      }
+
+      return jsonResponse({ id, deleted: true }, 200);
     },
   };
 }

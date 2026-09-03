@@ -51,9 +51,23 @@ src/routes/api/wiwo/v1/articles.ts    ruta fina
 ## Endpoints
 
 ```
-GET /api/wiwo/v1/manifest
-GET /api/wiwo/v1/articles?since=AAAA-MM-DD&limit=25&cursor=<opaco>
+GET    /api/wiwo/v1/manifest
+GET    /api/wiwo/v1/articles?since=AAAA-MM-DD&limit=25&cursor=<opaco>
+POST   /api/wiwo/v1/articles                 publicar o corregir una nota
+DELETE /api/wiwo/v1/articles?id=<id>         borrar una nota publicada
+POST   /api/wiwo/v1/media                    subir un archivo
+GET    /api/wiwo/v1/media/<id>               servirlo
 ```
+
+Los tres últimos piden la clave del sitio (`Authorization: Bearer`, de
+`WIWO_WRITE_TOKEN`) y sólo existen de verdad si el sitio los anuncia en
+`capabilities`. El identificador del borrado va en la query y no en la ruta a
+propósito: así el borrado llega a un sitio actualizando el paquete, sin agregarle
+ningún archivo de ruta.
+
+El borrado alcanza **sólo a lo que el orquestador publicó**. Una nota del archivo
+editorial del sitio vive en su código, no en su base: se contesta `404 not_found`
+diciéndolo.
 
 `since` filtra por **`updatedAt`**, no por fecha de publicación: una nota vieja
 corregida hoy tiene que volver a viajar. Un sitio que no registre ediciones debe
@@ -68,8 +82,15 @@ sus correcciones.
 despliegue de N sitios no es atómico: durante días va a haber sitios en la
 versión vieja y en la nueva a la vez.
 
+- **1.2** — la mitad de escritura: publicar, borrar y subir archivos.
 - **1.1** — paginación por cursor y `updatedAt` con significado propio.
 - **1.0** — versión inicial. Se sigue leyendo.
+
+Lo **opcional** no sube la versión: se anuncia en `capabilities`. El borrado
+llegó así —`capabilities.delete`— y no como 1.3, porque un sitio que anuncie una
+versión que el orquestador todavía no tiene en `SUPPORTED_CONTRACTS` no queda
+"sin borrado": queda ilegible entero. Un lector viejo no ve el campo, lo trata
+como ausente y no ofrece borrar.
 
 Un cambio incompatible sube la versión **y** se agrega a `SUPPORTED_CONTRACTS`
 antes de tocar ningún sitio.
