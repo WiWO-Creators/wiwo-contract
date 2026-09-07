@@ -98,6 +98,13 @@ omisión en un solo lugar: sin declaración, `general`. Un valor desconocido
 también se lee como `general`, nunca como un error: un sitio más nuevo que quien
 lo lee tiene que seguir siendo legible.
 
+Tampoco la sube un cambio que solo toca lo que los sitios implementan de su lado
+y no lo que viaja por el cable. `urlFor` pasó a recibir la **nota entera** además
+del identificador, y eso no cambió ni una respuesta del protocolo: es la firma de
+una función que cada sitio escribe. Los que resuelven la dirección con el id a
+secas siguen compilando sin tocarse, porque una función de dos parámetros cumple
+un tipo de tres.
+
 Un cambio incompatible sube la versión **y** se agrega a `SUPPORTED_CONTRACTS`
 antes de tocar ningún sitio.
 

@@ -279,7 +279,7 @@ async function allArticles(config, origin, since) {
 function alCable(article, origin, urlFor) {
     return {
         ...article,
-        url: urlFor(article.id, origin),
+        url: urlFor(article.id, origin, article),
         image: article.image
             ? { ...article.image, url: new URL(article.image.url, origin).toString() }
             : null,
@@ -454,7 +454,7 @@ function createArticlesHandlers(config) {
             await config.store.save(article);
             return (0, http_js_1.jsonResponse)({
                 id: article.id,
-                url: config.urlFor(article.id, origin),
+                url: config.urlFor(article.id, origin, article),
                 updatedAt: article.updatedAt,
             }, previa ? 200 : 201);
         },

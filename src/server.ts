@@ -278,8 +278,26 @@ export interface WiwoSiteConfig {
   archive(since?: string): WiwoSiteArticle[] | Promise<WiwoSiteArticle[]>;
   /** Los campos que el sitio exige para aceptar una nota. */
   fields(origin: string): WiwoField[];
-  /** La URL pública de una nota en este sitio. */
-  urlFor(id: string, origin: string): string;
+  /**
+   * La URL pública de una nota en este sitio.
+   *
+   * Recibe la NOTA además del identificador porque hay sitios donde la
+   * dirección no se deduce del id: uno con varias secciones que se dibujan
+   * distinto necesita saber en cuál está la pieza, y eso vive en la pieza y no
+   * en su nombre. Deducirlo del id obliga a codificar la sección dentro del
+   * identificador, y esa convención el orquestador no la puede respetar: propone
+   * el id a partir del título y nada más. Sin la pieza a mano, esos sitios
+   * terminan devolviendo una dirección inventada o la portada.
+   *
+   * Un sitio con una sola ruta de nota puede seguir ignorando el tercer
+   * parámetro: una función de dos parámetros sigue cumpliendo este tipo.
+   *
+   * @param id Identificador de la nota dentro del sitio.
+   * @param origin Origen público por el que entró la petición.
+   * @param article La nota entera, para los sitios cuya dirección depende de
+   *   algo más que el identificador.
+   */
+  urlFor(id: string, origin: string, article: WiwoSiteArticle): string;
   /**
    * Dónde guarda este sitio las imágenes que le suban.
    *
@@ -411,7 +429,7 @@ function alCable(
 ): WiwoArticle {
   return {
     ...article,
-    url: urlFor(article.id, origin),
+    url: urlFor(article.id, origin, article),
     image: article.image
       ? { ...article.image, url: new URL(article.image.url, origin).toString() }
       : null,
@@ -625,7 +643,7 @@ export function createArticlesHandlers(config: WiwoSiteConfig): {
       return jsonResponse(
         {
           id: article.id,
-          url: config.urlFor(article.id, origin),
+          url: config.urlFor(article.id, origin, article),
           updatedAt: article.updatedAt,
         },
         previa ? 200 : 201,
